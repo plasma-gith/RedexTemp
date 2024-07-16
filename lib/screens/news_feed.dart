@@ -287,7 +287,7 @@ class _NewsFeedPageState extends State<NewsFeedPage> {
             context: context,
             builder: (context) {
               return AlertDialog(
-                title: const Text('Post News Item'),
+                title: const Text('Post Your Moment'),
                 content: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
