@@ -28,7 +28,8 @@ class _NewsFeedPageState extends State<NewsFeedPage> {
   final DatabaseController _databaseController = DatabaseController();
 
   Future<void> _uploadImage() async {
-    final pickedFile = await _imagePicker.pickImage(source: ImageSource.gallery);
+    final pickedFile =
+        await _imagePicker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() {
         _imageFile = File(pickedFile.path);
@@ -121,19 +122,26 @@ class _NewsFeedPageState extends State<NewsFeedPage> {
       }
 
       // Fetch the post to check the author
-      final postDoc = await FirebaseFirestore.instance.collection('news').doc(newsItemId).get();
+      final postDoc = await FirebaseFirestore.instance
+          .collection('news')
+          .doc(newsItemId)
+          .get();
       final postData = postDoc.data();
       final postAuthorId = postData?['authorId'];
 
       if (postAuthorId != user.uid) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('You are not authorized to delete this post')),
+          const SnackBar(
+              content: Text('You are not authorized to delete this post')),
         );
         return;
       }
 
       // Proceed to delete the post
-      await FirebaseFirestore.instance.collection('news').doc(newsItemId).delete();
+      await FirebaseFirestore.instance
+          .collection('news')
+          .doc(newsItemId)
+          .delete();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Post deleted successfully')),
       );
@@ -143,7 +151,6 @@ class _NewsFeedPageState extends State<NewsFeedPage> {
       );
     }
   }
-
 
   Future<void> _toggleLike(String newsItemId) async {
     final user = FirebaseAuth.instance.currentUser;
@@ -234,6 +241,23 @@ class _NewsFeedPageState extends State<NewsFeedPage> {
     );
   }
 
+  Future<void> _deleteComment(String newsItemId, String commentId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('news')
+          .doc(newsItemId)
+          .collection('comments')
+          .doc(commentId)
+          .delete();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to delete comment: $e')),
+      );
+    }
+  }
+
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -273,11 +297,11 @@ class _NewsFeedPageState extends State<NewsFeedPage> {
                     ),
                     TextField(
                       controller: _descriptionController,
-                      decoration: const InputDecoration(labelText: 'Description'),
+                      decoration:
+                          const InputDecoration(labelText: 'Description'),
                     ),
                     SizedBox(height: 8),
-                    if (_imageFile != null)
-                      Image.file(_imageFile!),
+                    if (_imageFile != null) Image.file(_imageFile!),
                     ElevatedButton(
                       onPressed: _uploadImage,
                       child: const Text('Pick Image'),
@@ -303,7 +327,10 @@ class _NewsFeedPageState extends State<NewsFeedPage> {
         child: const Icon(Icons.add),
       ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: FirebaseFirestore.instance.collection('news').orderBy('timestamp', descending: true).snapshots(),
+        stream: FirebaseFirestore.instance
+            .collection('news')
+            .orderBy('timestamp', descending: true)
+            .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -341,30 +368,35 @@ class _NewsFeedPageState extends State<NewsFeedPage> {
                   }
 
                   final userInfo = userSnapshot.data;
-                  final username = userInfo?['username'] ?? 'Unknown User';
-                  final profileImageUrl = userInfo?['profileImageUrl'] ?? '';
+                  final username = userInfo?['name'] ?? 'Unknown User';
+                  final profileImageUrl = userInfo?['image'] ?? '';
 
                   // Check if the current user is the author of the post
                   final currentUser = FirebaseAuth.instance.currentUser;
-                  final isAuthor = currentUser != null && currentUser.uid == authorId;
+                  final isAuthor =
+                      currentUser != null && currentUser.uid == authorId;
 
                   return Card(
-                    margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                    margin:
+                        const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
                     elevation: 5,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         ListTile(
                           leading: profileImageUrl.isNotEmpty
-                              ? CircleAvatar(backgroundImage: NetworkImage(profileImageUrl))
+                              ? CircleAvatar(
+                                  backgroundImage:
+                                      NetworkImage(profileImageUrl))
                               : const CircleAvatar(child: Icon(Icons.person)),
                           title: Text(username),
                           subtitle: Text(title),
                           trailing: isAuthor
                               ? IconButton(
-                            icon: const Icon(Icons.delete),
-                            onPressed: () => _confirmDeletePost(newsItem.id),
-                          )
+                                  icon: const Icon(Icons.delete),
+                                  onPressed: () =>
+                                      _confirmDeletePost(newsItem.id),
+                                )
                               : null,
                         ),
                         if (imageUrl.isNotEmpty)
@@ -380,9 +412,14 @@ class _NewsFeedPageState extends State<NewsFeedPage> {
                               children: [
                                 IconButton(
                                   icon: Icon(
-                                    likes.contains(FirebaseAuth.instance.currentUser?.uid)
+                                    likes.contains(FirebaseAuth
+                                            .instance.currentUser?.uid)
                                         ? Icons.favorite
                                         : Icons.favorite_border,
+                                    color: likes.contains(FirebaseAuth
+                                            .instance.currentUser?.uid)
+                                        ? Colors.red
+                                        : null,
                                   ),
                                   onPressed: () => _toggleLike(newsItem.id),
                                 ),
@@ -401,64 +438,147 @@ class _NewsFeedPageState extends State<NewsFeedPage> {
                             //   ),
                           ],
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.expand_more),
-                          onPressed: () {
-                            showModalBottomSheet(
-                              context: context,
-                              builder: (context) {
-                                return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                                  stream: FirebaseFirestore.instance
-                                      .collection('news')
-                                      .doc(newsItem.id)
-                                      .collection('comments')
-                                      .orderBy('timestamp', descending: true)
-                                      .snapshots(),
-                                  builder: (context, snapshot) {
-                                    if (snapshot.connectionState == ConnectionState.waiting) {
-                                      return const Center(child: CircularProgressIndicator());
-                                    }
+                        Center(
+                          child: IconButton(
+                            icon: const Icon(Icons.expand_more),
+                            onPressed: () {
+                              showModalBottomSheet(
+                                context: context,
+                                builder: (context) {
+                                  return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                                    stream: FirebaseFirestore.instance
+                                        .collection('news')
+                                        .doc(newsItem.id)
+                                        .collection('comments')
+                                        .orderBy('timestamp', descending: true)
+                                        .snapshots(),
+                                    builder: (context, snapshot) {
+                                      if (snapshot.connectionState == ConnectionState.waiting) {
+                                        return const Center(child: CircularProgressIndicator());
+                                      }
 
-                                    if (snapshot.hasError) {
-                                      return Center(child: Text('Error: ${snapshot.error}'));
-                                    }
+                                      if (snapshot.hasError) {
+                                        return Center(child: Text('Error: ${snapshot.error}'));
+                                      }
 
-                                    final comments = snapshot.data?.docs ?? [];
+                                      final comments = snapshot.data?.docs ?? [];
+                                      final currentUser = FirebaseAuth.instance.currentUser;
 
-                                    return ListView(
-                                      children: comments.map((doc) {
-                                        final commentData = doc.data();
-                                        final commentId = doc.id;
-                                        final commentUser = commentData['user'] ?? 'Anonymous';
-                                        final commentText = commentData['comment'] ?? 'No Comment';
-                                        final commentLikes = List<String>.from(commentData['likes'] ?? []);
+                                      return ListView(
+                                        children: comments.map((doc) {
+                                          final commentData = doc.data();
+                                          final commentId = doc.id;
+                                          final commentUserId = commentData['userId'] ?? '';
+                                          final commentText = commentData['comment'] ?? 'No Comment';
+                                          final commentLikes = List<String>.from(commentData['likes'] ?? []);
 
-                                        return ListTile(
-                                          title: Text(commentUser),
-                                          subtitle: Text(commentText),
-                                          trailing: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              IconButton(
-                                                icon: Icon(
-                                                  commentLikes.contains(FirebaseAuth.instance.currentUser?.uid)
-                                                      ? Icons.favorite
-                                                      : Icons.favorite_border,
+                                          // Check if the current user is the author of the post or the owner of the comment
+                                          final isPostAuthor = currentUser?.uid == newsItem['authorId'];
+                                          final isCommentOwner = currentUser?.uid == commentUserId;
+
+                                          return Dismissible(
+                                            key: Key(commentId),
+                                            direction: DismissDirection.endToStart, // Swipe direction from right to left
+                                            background: Container(
+                                              color: Colors.red,
+                                              child: const Align(
+                                                alignment: Alignment.centerRight, // Align the delete icon to the right
+                                                child: Padding(
+                                                  padding: EdgeInsets.symmetric(horizontal: 20.0),
+                                                  child: Icon(
+                                                    Icons.delete,
+                                                    color: Colors.white,
+                                                  ),
                                                 ),
-                                                onPressed: () => _toggleCommentLike(newsItem.id, commentId),
                                               ),
-                                              Text('${commentLikes.length}'),
-                                            ],
-                                          ),
-                                        );
-                                      }).toList(),
-                                    );
-                                  },
-                                );
-                              },
-                            );
-                          },
-                        ),
+                                            ),
+                                            confirmDismiss: (direction) async {
+                                              // Only confirm deletion if the user is the post author or the comment owner
+                                              if (isPostAuthor || isCommentOwner) {
+                                                return await showDialog(
+                                                  context: context,
+                                                  builder: (context) {
+                                                    return AlertDialog(
+                                                      title: const Text('Confirm Delete'),
+                                                      content: const Text('Are you sure you want to delete this comment?'),
+                                                      actions: [
+                                                        TextButton(
+                                                          onPressed: () => Navigator.pop(context, false),
+                                                          child: const Text('Cancel'),
+                                                        ),
+                                                        TextButton(
+                                                          onPressed: () => Navigator.pop(context, true),
+                                                          child: const Text('Delete'),
+                                                        ),
+                                                      ],
+                                                    );
+                                                  },
+                                                );
+                                              }
+                                              // Return false if the user does not have permission to delete
+                                              return false;
+                                            },
+                                            onDismissed: (direction) {
+                                              // Delete the comment if confirmed
+                                              if (isPostAuthor || isCommentOwner) {
+                                                _deleteComment(newsItem.id, commentId);
+                                              }
+                                            },
+                                            child: FutureBuilder<Map<String, dynamic>?>(
+                                              future: _getUserInfo(commentUserId),
+                                              builder: (context, userSnapshot) {
+                                                if (userSnapshot.connectionState == ConnectionState.waiting) {
+                                                  return const Center(child: CircularProgressIndicator());
+                                                }
+
+                                                if (userSnapshot.hasError) {
+                                                  return Center(child: Text('Error: ${userSnapshot.error}'));
+                                                }
+
+                                                final userData = userSnapshot.data;
+                                                final commentUser = userData?['name'] ?? 'Anonymous';
+                                                final commentUserProfilePicture = userData?['image'] ?? '';
+
+                                                return ListTile(
+                                                  leading: commentUserProfilePicture.isNotEmpty
+                                                      ? CircleAvatar(
+                                                    backgroundImage: NetworkImage(commentUserProfilePicture),
+                                                  )
+                                                      : const CircleAvatar(
+                                                    child: Icon(Icons.person),
+                                                  ),
+                                                  title: Text(commentUser),
+                                                  subtitle: Text(commentText),
+                                                  trailing: Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      IconButton(
+                                                        icon: Icon(
+                                                          commentLikes.contains(currentUser?.uid)
+                                                              ? Icons.favorite
+                                                              : Icons.favorite_border,
+                                                          color: commentLikes.contains(currentUser?.uid)
+                                                              ? Colors.red
+                                                              : null,
+                                                        ),
+                                                        onPressed: () => _toggleCommentLike(newsItem.id, commentId),
+                                                      ),
+                                                      Text('${commentLikes.length}'),
+                                                    ],
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          );
+                                        }).toList(),
+                                      );
+                                    },
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                        )
                       ],
                     ),
                   );
@@ -499,7 +619,8 @@ class _NewsFeedPageState extends State<NewsFeedPage> {
                   CircleAvatar(
                     radius: 30,
                     backgroundImage: NetworkImage(
-                      user?.photoURL ?? 'https://www.example.com/default_profile_image_url', // Default image if not available
+                      user?.photoURL ??
+                          'https://www.example.com/default_profile_image_url', // Default image if not available
                     ),
                     backgroundColor: Colors.transparent,
                   ),
@@ -511,21 +632,25 @@ class _NewsFeedPageState extends State<NewsFeedPage> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: <Widget>[
                         Text(
-                          user?.displayName ?? 'User Name', // Display real user name or placeholder
+                          user?.displayName ??
+                              'User Name', // Display real user name or placeholder
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            overflow: TextOverflow.ellipsis, // Truncate text if it's too long
+                            overflow: TextOverflow
+                                .ellipsis, // Truncate text if it's too long
                           ),
                         ),
                         SizedBox(height: 5),
                         Text(
-                          user?.email ?? 'user@example.com', // Display real user email or placeholder
+                          user?.email ??
+                              'user@example.com', // Display real user email or placeholder
                           style: TextStyle(
                             color: Colors.white70,
                             fontSize: 14,
-                            overflow: TextOverflow.ellipsis, // Truncate text if it's too long
+                            overflow: TextOverflow
+                                .ellipsis, // Truncate text if it's too long
                           ),
                         ),
                       ],
@@ -546,7 +671,8 @@ class _NewsFeedPageState extends State<NewsFeedPage> {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const UploadFilesPage()),
+                      MaterialPageRoute(
+                          builder: (context) => const UploadFilesPage()),
                     );
                   },
                 ),
@@ -563,7 +689,8 @@ class _NewsFeedPageState extends State<NewsFeedPage> {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const HomeScreen()),
+                      MaterialPageRoute(
+                          builder: (context) => const HomeScreen()),
                     );
                   },
                 ),
@@ -574,7 +701,9 @@ class _NewsFeedPageState extends State<NewsFeedPage> {
                     // Handle tap for FAQ
                   },
                 ),
-                SizedBox(height: 20), // Spacer to move the logout button to the bottom
+                SizedBox(
+                    height:
+                        20), // Spacer to move the logout button to the bottom
                 _buildDrawerItem(
                   icon: Icons.logout,
                   text: 'Log Out',
@@ -588,7 +717,8 @@ class _NewsFeedPageState extends State<NewsFeedPage> {
                         Navigator.pop(context); // Hide progress dialog
                         Navigator.pushReplacement(
                           context,
-                          MaterialPageRoute(builder: (_) => const LoginScreen()),
+                          MaterialPageRoute(
+                              builder: (_) => const LoginScreen()),
                         );
                       });
                     });

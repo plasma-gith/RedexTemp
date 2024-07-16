@@ -37,7 +37,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GetMaterialApp(
+    return MaterialApp(
         title: 'Redex',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
